@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>VJ Studio Pro — Workstation</title>
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Montserrat:wght@400;900&family=Oswald:wght@400;700&family=Syncopate:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+        body { background-color: #111112; color: #e2e2e5; font-family: 'Segoe UI', Tahoma, sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+        
+        /* BANDEAU D'ALERTE MIDI DOUBLON */
+        #midi-alert-banner { display: none; background: #ff3344; color: white; padding: 8px 20px; align-items: center; justify-content: space-between; font-size: 12px; font-weight: bold; font-family: sans-serif; z-index: 100000; box-shadow: 0 4px 15px rgba(255,0,0,0.3); }
+        #midi-alert-banner button { background: rgba(0,0,0,0.3); color: white; border: 1px solid rgba(255,255,255,0.4); padding: 3px 8px; margin-left: 15px; cursor: pointer; border-radius: 3px; font-size: 10px; text-transform: uppercase; }
+        #midi-alert-banner button:hover { background: rgba(0,0,0,0.5); border-color: white; }
+        #midi-alert-banner .close-alert { background: transparent; border: none; font-size: 16px; cursor: pointer; color: white; font-weight: bold; margin-left: 10px; }
+
+        header { background: #18181a; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #2a2a2e; height: 45px; }
+        header h1 { color: #00e5ff; font-size: 14px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 800; }
+        
+        .header-midi-status { display: flex; align-items: center; gap: 10px; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; }
+        .status-red { color: #ff3344; }
+        .status-green { color: #00ff66; }
+
+        .workspace { display: flex; flex: 1; height: calc(100vh - 45px); position: relative; background: #141416; }
+        
+        .side-panel { width: 340px; min-width: 340px; background: #18181a; display: flex; flex-direction: column; gap: 12px; padding: 15px; overflow-y: auto; }
+        .left-panel { border-right: 1px solid #2a2a2e; }
+        .right-panel { border-left: 1px solid #2a2a2e; }
+        
+        .panel { background: #202024; padding: 14px; border-radius: 6px; border: 1px solid #2d3238; }
+        .panel h3 { font-size: 11px; color: #00e5ff; text-transform: uppercase; margin-bottom: 10px; letter-spacing: 0.5px; font-weight: 700; border-bottom: 1px solid #2d2d33; padding-bottom: 5px; }
+        
+        label { display: block; margin: 8px 0 4px 0; font-weight: 600; font-size: 10px; color: #8a8a93; text-transform: uppercase; }
+        .checkbox-container { display: flex; align-items: center; gap: 8px; margin: 8px 0; cursor: pointer; font-size: 11px; color: #e2e2e5; font-weight: 600; text-transform: uppercase; }
+        .checkbox-container input { cursor: pointer; width: 16px; height: 16px; accent-color: #00e5ff; }
+
+        input[type="text"], select, input[type="range"], input[type="color"] { width: 100%; padding: 6px 10px; background: #141416; border: 1px solid #2d3238; color: white; border-radius: 4px; font-size: 12px; transition: 0.1s; }
+        input[type="text"]:focus, select:focus { border-color: #00e5ff; outline: none; }
+        input[type="color"] { height: 35px; padding: 2px; cursor: pointer; }
+
+        input[type="range"] { appearance: none; -webkit-appearance: none; height: 6px; background: #2d2d33; border-radius: 3px; margin: 8px 0; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 18px; background: #00e5ff; border-radius: 2px; cursor: pointer; }
+
+        button { background: #2d2d33; color: #e2e2e5; border: 1px solid #3a3a42; padding: 8px 12px; font-weight: bold; border-radius: 4px; cursor: pointer; transition: 0.1s; font-size: 10px; text-transform: uppercase; }
+        button:hover:not(:disabled) { background: #3a3a42; border-color: #00e5ff; color: white; }
+        .btn-blue { background: #0055ff; border-color: #0044cc; color: white; }
+        .btn-red { background: #ff3344; border-color: #cc2233; color: white; }
+        
+        /* Boutons d'édition de style (Gras, Italique, Souligné) */
+        .style-btn-group { display: flex; gap: 5px; margin-top: 8px; }
+        .style-btn { flex: 1; padding: 6px; background: #141416; border: 1px solid #2d3238; font-size: 11px; color: #fff; cursor: pointer; border-radius: 4px; }
+        .style-btn.active { background: #00e5ff; color: #000; border-color: #00e5ff; font-weight: bold; }
+
+        .fx-card { background: #1a2229; border: 1px solid #2d3a4f; padding: 12px; border-radius: 6px; margin-bottom: 10px; }
+        .fx-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #2d3a4f; padding-bottom: 6px; }
+        .fx-card-title { font-size: 11px; font-weight: bold; color: #fff; }
+        
+        .mapping-block { display: flex; gap: 2px; }
+        .btn-map-combined { background: #222; color: #ffaa00; border: 1px solid #333; min-width: 90px; height: 24px; font-size: 9px; line-height: 22px; text-align: center; border-radius: 4px 0 0 4px; }
+        .btn-map-combined.learning { background: #ffaa00 !important; color: #000 !important; animation: blink-btn 0.6s infinite steps(2); }
+        .btn-map-combined.mapped { background: #0055ff; color: white; border-color: #00e5ff; }
+        .btn-unmap-combined { background: #3a1a1a; color: #ff5555; border: 1px solid #552222; width: 20px; height: 24px; text-align: center; border-radius: 0 4px 4px 0; }
+        
+        @keyframes blink-btn { 0% { opacity: 1; } 50% { opacity: 0.4; } }
+
+        .center-canvas { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px; position: relative; background: #0d0d0e; }
+        #preview-viewport { width: 100%; max-width: 850px; aspect-ratio: 16/9; background: #000000; border: 1px solid #2a2a2e; position: relative; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.7); transition: aspect-ratio 0.2s ease; }
+        
+        .calibration-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999999 !important; display: none; object-fit: fill; }
+
+        .smart-guide { position: absolute; background: #ff00ff; display: none; pointer-events: none; z-index: 99999; }
+        #guide-v { left: 50%; top: 0; width: 1px; height: 100%; }
+        #guide-h { top: 50%; left: 0; height: 1px; width: 100%; }
+
+        :root { 
+            --fx-strobe-speed: 1s; 
+            --fx-strobe-color: #ffffff; 
+            --fx-rainbow-speed: 4s;
+            --fx-blink-speed: 0.2s;
+        }
+        
+        .fx-strobe-global-bg { animation: strobeGlobalAnim var(--fx-strobe-speed) infinite linear !important; }
+        @keyframes strobeGlobalAnim { 
+            0%, 49.99% { background-color: var(--fx-strobe-color); } 
+            50%, 100% { background-color: transparent; } 
+        }
+
+        .fx-rainbow-global-bg { animation: rainbowAnimationBg var(--fx-rainbow-speed) infinite linear !important; }
+        @keyframes rainbowAnimationBg { 0% { background-color: #ff0000; } 17% { background-color: #ff00ff; } 33% { background-color: #0000ff; } 50% { background-color: #00ffff; } 67% { background-color: #00ff00; } 83% { background-color: #ffff00; } 100% { background-color: #ff0000; } }
+
+        .fx-active-rainbow { 
+            background-image: linear-gradient(to right, #ff0000, #ff00ff, #0000ff, #00ffff, #00ff00, #ffff00, #ff0000) !important;
+            background-size: 200% auto !important;
+            -webkit-background-clip: text !important;
+            background-clip: text !important;
+            -webkit-text-fill-color: transparent !important;
+            animation: rainbowMovingText var(--fx-rainbow-speed) infinite linear !important;
+            text-shadow: none !important;
+        }
+        @keyframes rainbowMovingText {
+            0% { background-position: 0% center; }
+            100% { background-position: -200% center; }
+        }
+
+        .fx-active-blink { animation: blinkAnimationText var(--fx-blink-speed) infinite steps(1) !important; }
+        @keyframes blinkAnimationText { 
+            0%, 49.99% { opacity: 1; visibility: visible; } 
+            50%, 100% { opacity: 0; visibility: hidden; } 
+        }
+
+        .layer-box { position: absolute; border: 1px dashed transparent; cursor: move; display: inline-flex; align-items: center; justify-content: center; padding: 5px; }
+        .layer-box.selected { border-color: #00e5ff; background: rgba(0, 229, 255, 0.03); }
+        
+        .layer-visual-wrapper { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+        
+        .layer-text-content { color: white; pointer-events: none; text-shadow: 0 0 6px black; white-space: nowrap; border-radius: 4px; display: inline-block; padding: 6px 12px; }
+        .layer-media-content { width: 100%; height: 100%; object-fit: fill; pointer-events: none; }
+        
+        .layer-box .handle { position: absolute; width: 10px; height: 10px; background: #00e5ff; border: 1px solid white; display: none; z-index: 100; }
+        .layer-box.selected .handle { display: block; }
+        .br { bottom: -5px; right: -5px; cursor: nwse-resize; }
+    </style>
+</head>
+<body>
+
+    <div id="midi-alert-banner">
+        <span>⚠️ ATTENTION : Ce Pad / Note MIDI est déjà associé à un autre effet !</span>
+        <div>
+            <button onclick="afficherExplicationDoublon()">C'est grave ?</button>
+            <button class="close-alert" onclick="fermerAlerteMidi()">×</button>
+        </div>
+    </div>
+
+    <header>
+        <h1>🎛️ VJ Studio Pro — Workstation</h1>
+        <div id="midi-header-status" class="header-midi-status status-red">
+            🔴 MIDI NON CONNECTÉ
+        </div>
+    </header>
+
+    <div class="workspace">
+        
+        <div class="side-panel left-panel">
+            <div class="panel">
+                <h3>🎨 Couleur de l'Arrière-Plan</h3>
+                <label>Couleur Fond Global</label>
+                <input type="color" id="global-bg-picker" value="#000000" oninput="changerCouleurArrierePlanGlobal(this.value)">
+            </div>
+
+            <div class="panel">
+                <h3>📹 Gestion des Médias</h3>
+                <label>Ajouter Images ou Vidéos</label>
+                <input type="file" id="file-uploader" accept="video/*,image/*" onchange="chargerFichierMedia(this)">
+            </div>
+
+            <div class="panel">
+                <h3>📝 Zones de Texte</h3>
+                <button style="width: 100%; margin-bottom: 8px;" class="btn-blue" onclick="creerZoneTexte()">+ Nouvelle Zone Texte</button>
+                <button style="width: 100%;" onclick="dupliquerCalqueSelectionne()">📋 Dupliquer le Texte Selectionné</button>
+            </div>
+
+            <div id="dynamic-inspector-panel" class="panel" style="display: none; border-color: #555; background: #1b242c;"></div>
+        </div>
+
+        <div class="center-canvas">
+            <div id="preview-viewport" onmousedown="deselectionnerTout(event)">
+                <img id="viewport-calibration-pattern" class="calibration-overlay" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1920' height='1080' viewBox='0 0 1920 1080'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='0%25'><stop offset='0%25' stop-color='%23000'/><stop offset='100%25' stop-color='%23fff'/></linearGradient></defs><rect width='1920' height='1080' fill='%237f7f7f'/><g><rect x='0' y='0' width='274' height='720' fill='%23ffffff'/><rect x='274' y='0' width='274' height='720' fill='%23ffff00'/><rect x='548' y='0' width='274' height='720' fill='%2300ffff'/><rect x='822' y='0' width='274' height='720' fill='%2300ff00'/><rect x='1096' y='0' width='274' height='720' fill='%23ff00ff'/><rect x='1370' y='0' width='274' height='720' fill='%23ff0000'/><rect x='1644' y='0' width='276' height='720' fill='%230000ff'/></g><g><rect x='0' y='720' width='274' height='135' fill='%230000ff'/><rect x='274' y='720' width='274' height='135' fill='%23131313'/><rect x='548' y='720' width='274' height='135' fill='%23ff00ff'/><rect x='822' y='720' width='274' height='135' fill='%23131313'/><rect x='1096' y='720' width='274' height='135' fill='%2300ffff'/><rect x='1370' y='720' width='274' height='135' fill='%23131313'/><rect x='1644' y='720' width='276' height='135' fill='%23ffffff'/></g><g><rect x='0' y='855' width='480' height='225' fill='%23002147'/><rect x='480' y='855' width='480' height='225' fill='%23ffffff'/><rect x='960' y='855' width='480' height='225' fill='%23000'/><rect x='1440' y='855' width='480' height='225' fill='url(%23g)'/></g><circle cx='960' cy='540' r='300' fill='none' stroke='%23ffffff' stroke-width='4'/><path d='M960 0 L960 1080 M0 540 L1920 540' stroke='%23ffffff' stroke-width='2' stroke-dasharray='10,10'/></svg>" alt="Mire">
+                
+                <div id="strobe-overlay" style="position: absolute; top:0; left:0; width:100%; height:100%; pointer-events: none; z-index: 999998; display: none;"></div>
+
+                <div id="guide-v" class="smart-guide"></div>
+                <div id="guide-h" class="smart-guide"></div>
+            </div>
+        </div>
+
+        <div class="side-panel right-panel">
+            <div class="panel">
+                <h3>🖥️ Sortie HDMI & Options</h3>
+                
+                <label class="checkbox-container" style="color: #00e5ff; border: 1px dashed rgba(0, 229, 255, 0.4); padding: 8px; border-radius: 4px; background: rgba(0,229,255,0.02); margin-bottom: 12px;">
+                    <input type="checkbox" id="calibration-toggle-chk" onchange="basculerMireCalibration(this.checked)">
+                    🛠️ Activer la Mire
+                </label>
+
+                <label>Format / Dimension de l'Écran</label>
+                <select id="screen-aspect-ratio" onchange="ajusterDimensionEcran(this.value)" style="margin-bottom: 10px;">
+                    <option value="16/9">Standard 16:9 (HD / 4K)</option>
+                    <option value="4/3">Rétro / Projecteur 4:3</option>
+                    <option value="21/9">Cinéma / UltraWide 21:9</option>
+                </select>
+
+                <label>Sélection Écran Externe</label>
+                <div style="display: flex; gap: 4px; margin-bottom: 8px;">
+                    <select id="screen-selector" onchange="validerSelectionEcran()" style="flex: 1;">
+                        <option value="none">-- Choisir écran --</option>
+                    </select>
+                    <button onclick="actualiserListeEcrans()">🔄</button>
+                </div>
+                
+                <button id="btn-projector" class="btn-blue" style="width:100%; margin-bottom: 6px;" onclick="ouvrirProjectionSurEcranSelectionne()" disabled>Lancer Projection</button>
+                <button id="btn-close-projector" class="btn-red" style="width:100%; display:none; font-weight: 900;" onclick="fermerProjectionExterne()">❌ Fermer l'Écran Public</button>
+            </div>
+
+            <div class="panel" style="border: 1px solid #00e5ff; background: #15191e; flex: 1; display: flex; flex-direction: column;">
+                <h3>✨ Rack Effets (FX)</h3>
+                <div style="display: flex; gap: 4px; margin-bottom: 12px;">
+                    <select id="fx-type-adder" style="flex: 1;">
+                        <option value="globalStrobe">⚡ STROBOSCOPE MASTER</option>
+                        <option value="rainbow">🌈 ARC-EN-CIEL CLASSIQUE</option>
+                        <option value="blink">👁️ CLIGNOTEMENT CLASSIQUE</option>
+                        <option value="globalFlashColor">🎨 COULEUR FOND</option>
+                        <option value="globalRainbow">🌍 FOND RAINBOW</option>
+                    </select>
+                    <button class="btn-blue" onclick="ajouterNouvelEffetAuRack()">[ + ]</button>
+                </div>
+                <div id="fx-rack-container" style="flex: 1; overflow-y: auto;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let extWindow = null;
+        let globalZIndexCounter = 10;
+        let globalBackgroundColor = "#000000";
+        let layers = []; 
+        let selectedLayerId = null;
+        let fxRack = [];
+        let fxCounter = 0;
+        let mappingTargetFxId = null;
+        let mappingTargetVideoId = null; // Cible d'apprentissage MIDI pour play/pause vidéo
+        let screensData = [];
+        let currentAspectRatio = "16/9";
+        let isCalibrationActive = false;
+
+        const mireBase64Src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1920' height='1080' viewBox='0 0 1920 1080'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='0%25'><stop offset='0%25' stop-color='%23000'/><stop offset='100%25' stop-color='%23fff'/></linearGradient></defs><rect width='1920' height='1080' fill='%237f7f7f'/><g><rect x='0' y='0' width='274' height='720' fill='%23ffffff'/><rect x='274' y='0' width='274' height='720' fill='%23ffff00'/><rect x='548' y='0' width='274' height='720' fill='%2300ffff'/><rect x='822' y='0' width='274' height='720' fill='%2300ff00'/><rect x='1096' y='0' width='274' height='720' fill='%23ff00ff'/><rect x='1370' y='0' width='274' height='720' fill='%23ff0000'/><rect x='1644' y='0' width='276' height='720' fill='%230000ff'/></g><g><rect x='0' y='720' width='274' height='135' fill='%230000ff'/><rect x='274' y='720' width='274' height='135' fill='%23131313'/><rect x='548' y='720' width='274' height='135' fill='%23ff00ff'/><rect x='822' y='720' width='274' height='135' fill='%23131313'/><rect x='1096' y='720' width='274' height='135' fill='%2300ffff'/><rect x='1370' y='720' width='274' height='135' fill='%23131313'/><rect x='1644' y='720' width='276' height='135' fill='%23ffffff'/></g><g><rect x='0' y='855' width='480' height='225' fill='%23002147'/><rect x='480' y='855' width='480' height='225' fill='%23ffffff'/><rect x='960' y='855' width='480' height='225' fill='%23000'/><rect x='1440' y='855' width='480' height='225' fill='url(%23g)'/></g><circle cx='960' cy='540' r='300' fill='none' stroke='%23ffffff' stroke-width='4'/><path d='M960 0 L960 1080 M0 540 L1920 540' stroke='%23ffffff' stroke-width='2' stroke-dasharray='10,10'/></svg>";
+
+        window.addEventListener('keydown', function(e) {
+            if (e.target.tagName === 'INPUT' && e.target.type === 'text') return;
+            if ((e.key === 'Delete' || e.key === 'Backspace') && selectedLayerId) {
+                e.preventDefault(); supprimerCalqueSelectionne();
+            }
+        });
+
+        function declencherAlerteMidi() { document.getElementById('midi-alert-banner').style.display = 'flex'; }
+        function fermerAlerteMidi() { document.getElementById('midi-alert-banner').style.display = 'none'; }
+        function afficherExplicationDoublon() { alert("Ce bouton contrôlera plusieurs effets simultanément."); }
+
+        if (navigator.requestMIDIAccess) { navigator.requestMIDIAccess().then(onMIDISuccess, onMIDIFailure); }
+        function onMIDISuccess(midiAccess) {
+            const header = document.getElementById('midi-header-status');
+            const inputs = midiAccess.inputs.values(); let hasInputs = false;
+            for (let input of inputs) {
+                input.onmidimessage = gererMessageMidiEntrant;
+                header.innerText = `🟢 CONNECTÉ : ${input.name}`;
+                header.className = "header-midi-status status-green"; hasInputs = true;
+            }
+            if (!hasInputs) { header.innerText = "🔴 MIDI NON CONNECTÉ"; header.className = "header-midi-status status-red"; }
+            midiAccess.onstatechange = () => onMIDISuccess(midiAccess);
+        }
+        function onMIDIFailure() { document.getElementById('midi-header-status').innerText = "❌ ERREUR MIDI"; }
+
+        function gererMessageMidiEntrant(message) {
+            let command = message.data[0] & 0xf0; let note = message.data[1];
+            let velocity = message.data.length > 2 ? message.data[2] : 0;
+            
+            // Apprentissage MIDI pour les Effets FX
+            if (mappingTargetFxId !== null) {
+                if (command === 144 && velocity > 0) {
+                    let doublonExiste = fxRack.some(f => f.assignedMidiNote === note && f.id !== mappingTargetFxId);
+                    if (doublonExiste) { declencherAlerteMidi(); }
+                    
+                    let fx = fxRack.find(f => f.id === mappingTargetFxId);
+                    if (fx) { fx.assignedMidiNote = note; mappingTargetFxId = null; renderRackEffets(); }
+                } return;
+            }
+
+            // Apprentissage MIDI pour le Play/Pause des Vidéos
+            if (mappingTargetVideoId !== null) {
+                if (command === 144 && velocity > 0) {
+                    let layer = layers.find(l => l.id === mappingTargetVideoId);
+                    if (layer) {
+                        layer.assignedMidiPlayPause = note;
+                        mappingTargetVideoId = null;
+                        changerSelection(layer.id);
+                    }
+                } return;
+            }
+
+            // Réception normale des commandes MIDI
+            if (command === 144 && velocity > 0) {
+                // Déclenchement Play/Pause Vidéo via Note MIDI
+                layers.forEach(l => {
+                    if (l.type === 'media' && l.isVideo && l.assignedMidiPlayPause === note) {
+                        basculerPlayPauseVideo(l.id);
+                    }
+                });
+            }
+
+            fxRack.forEach(fx => {
+                if (fx.assignedMidiNote === note) {
+                    if (command === 144 && velocity > 0) {
+                        if (fx.controlMode === 'switch') fx.isActive = !fx.isActive;
+                        else if (fx.controlMode === 'piano') fx.isActive = true;
+                    } else if (command === 128 || (command === 144 && velocity === 0)) {
+                        if (fx.controlMode === 'piano') fx.isActive = false;
+                    }
+                    appliquerTousLesEffetsDuRack(); renderRackEffets();
+                }
+            });
+        }
+
+        function ajouterNouvelEffetAuRack() {
+            fxCounter++;
+            let type = document.getElementById('fx-type-adder').value;
+            let fxObj = { id: "fx_" + fxCounter, type: type, targetLayerId: "none", isActive: false, speed: 5, controlMode: "switch", assignedMidiNote: null };
+            if(type === 'globalFlashColor') { fxObj.flashColor = "#ff0055"; }
+            if(type === 'globalStrobe') { fxObj.strobeColor = "#ffffff"; fxObj.speed = 10; } 
+            fxRack.push(fxObj);
+            renderRackEffets();
+        }
+
+        function renderRackEffets() {
+            let container = document.getElementById('fx-rack-container'); container.innerHTML = "";
+            fxRack.forEach(fx => {
+                let card = document.createElement('div'); card.className = "fx-card";
+                let labelMap = fx.assignedMidiNote !== null ? `NOTE ${fx.assignedMidiNote}` : "MAP MIDI";
+                
+                let optionsHtml = layers.map(l => {
+                    let nomAffiche = l.type === 'text' ? `TEXTE : ${l.text}` : "MÉDIA (Image/Vidéo)";
+                    if (nomAffiche.length > 28) nomAffiche = nomAffiche.substring(0, 25) + "...";
+                    return `<option value="${l.id}" ${fx.targetLayerId === l.id ? 'selected' : ''}>${nomAffiche}</option>`;
+                }).join('');
+
+                let targetSelector = (fx.type.startsWith('global')) ? "" : `
+                    <label>Sélectionner le texte/calque</label>
+                    <select onchange="mettreAJourCibleFx('${fx.id}', this.value)">
+                        <option value="none">-- Choisir --</option>
+                        ${optionsHtml}
+                    </select>`;
+
+                let customColorSelector = "";
+                if (fx.type === 'globalFlashColor') {
+                    customColorSelector = `<label>Couleur du Fond</label><input type="color" value="${fx.flashColor}" oninput="modifierParametreFx('${fx.id}', 'flashColor', this.value)">`;
+                } else if (fx.type === 'globalStrobe') {
+                    customColorSelector = `<label>Couleur du Strobe</label><input type="color" value="${fx.strobeColor}" oninput="modifierParametreFx('${fx.id}', 'strobeColor', this.value)">`;
+                }
+
+                let uniqueControlFader = "";
+                if (fx.type !== 'globalFlashColor') {
+                    let labelFader = (fx.type === 'globalStrobe') ? "Fader Intervalle / Fréquence" : "Fader Vitesse / Fréquence";
+                    uniqueControlFader = `
+                        <label>${labelFader} : ${fx.speed}</label>
+                        <input type="range" min="0" max="10" value="${fx.speed}" oninput="modifierParametreFx('${fx.id}', 'speed', this.value)">`;
+                }
+
+                let mappingTitle = "";
+                if (fx.type === "globalStrobe") mappingTitle = "⚡ STROBOSCOPE MASTER";
+                if (fx.type === "rainbow") mappingTitle = "🌈 ARC-EN-CIEL CLASSIQUE";
+                if (fx.type === "blink") mappingTitle = "👁️ CLIGNOTEMENT CLASSIQUE";
+                if (fx.type === "globalFlashColor") mappingTitle = "🎨 COULEUR FOND";
+                if (fx.type === "globalRainbow") mappingTitle = "🌍 FOND RAINBOW";
+
+                card.innerHTML = `
+                    <div class="fx-card-header">
+                        <span class="fx-card-title">${mappingTitle}</span>
+                        <div class="mapping-block">
+                            <button id="map-btn-${fx.id}" class="btn-map-combined ${fx.assignedMidiNote !== null ? 'mapped' : ''}" onclick="enclencherAttenteMappingMidi('${fx.id}')">${labelMap}</button>
+                            ${fx.assignedMidiNote !== null ? `<button class="btn-unmap-combined" onclick="effacerMappingMidi('${fx.id}')">×</button>` : ''}
+                        </div>
+                        <button class="btn-red" style="padding:4px;" onclick="supprimerEffetDuRack('${fx.id}')">🗑️</button>
+                    </div>
+                    ${targetSelector}
+                    ${customColorSelector}
+                    ${uniqueControlFader}
+                    <label>Mode</label>
+                    <select onchange="changerModeControle('${fx.id}', this.value)">
+                        <option value="switch" ${fx.controlMode === 'switch' ? 'selected' : ''}>SWITCH (ON/OFF)</option>
+                        <option value="piano" ${fx.controlMode === 'piano' ? 'selected' : ''}>PIANO (FLASH)</option>
+                    </select>
+                    <button class="btn-trigger" onmousedown="gererMouseDownTrigger('${fx.id}')" onmouseup="gererMouseUpTrigger('${fx.id}')" style="width:100%; margin-top:8px; background: ${fx.isActive ? '#00e5ff' : '#2d2d33'}; color: ${fx.isActive ? '#000' : '#fff'}; font-weight:900;">${fx.isActive ? 'ACTIF' : 'DÉCLENCHER'}</button>`;
+                container.appendChild(card);
+            });
+        }
+
+        function enclencherAttenteMappingMidi(fxId) { mappingTargetVideoId = null; mappingTargetFxId = fxId; let btn = document.getElementById(`map-btn-${fxId}`); btn.classList.add('learning'); btn.innerText = "ATTENTE PAD..."; }
+        function supprimerEffetDuRack(fxId) { fxRack = fxRack.filter(f => f.id !== fxId); appliquerTousLesEffetsDuRack(); renderRackEffets(); }
+        function effacerMappingMidi(fxId) { let fx = fxRack.find(f => f.id === fxId); if (fx) fx.assignedMidiNote = null; renderRackEffets(); }
+        function mettreAJourCibleFx(fxId, layerId) { let fx = fxRack.find(f => f.id === fxId); if (fx) fx.targetLayerId = layerId; appliquerTousLesEffetsDuRack(); }
+        function modifierParametreFx(fxId, param, valeur) { let fx = fxRack.find(f => f.id === fxId); if (fx) { fx[param] = valeur; appliquerTousLesEffetsDuRack(); if(param === 'speed') renderRackEffets(); } }
+        function changerModeControle(fxId, mode) { let fx = fxRack.find(f => f.id === fxId); if (fx) { fx.controlMode = mode; fx.isActive = false; appliquerTousLesEffetsDuRack(); renderRackEffets(); } }
+        function gererMouseDownTrigger(fxId) { let fx = fxRack.find(f => f.id === fxId); if (fx) { if (fx.controlMode === 'switch') fx.isActive = !fx.isActive; else fx.isActive = true; appliquerTousLesEffetsDuRack(); renderRackEffets(); } }
+        function gererMouseUpTrigger(fxId) { let fx = fxRack.find(f => f.id === fxId); if (fx && fx.controlMode === 'piano') { fx.isActive = false; appliquerTousLesEffetsDuRack(); renderRackEffets(); } }
+
+        function basculerMireCalibration(active) {
+            isCalibrationActive = active;
+            document.getElementById('viewport-calibration-pattern').style.display = active ? 'block' : 'none';
+            syncFenetreExterne();
+        }
+
+        function ajusterDimensionEcran(ratio) {
+            currentAspectRatio = ratio;
+            document.getElementById('preview-viewport').style.aspectRatio = ratio;
+            syncFenetreExterne();
+        }
+
+        function appliquerTousLesEffetsDuRack() {
+            let viewport = document.getElementById('preview-viewport');
+            viewport.className = ""; 
+            
+            let strobeOverlay = document.getElementById('strobe-overlay');
+            strobeOverlay.className = "";
+            strobeOverlay.style.display = "none";
+            
+            let activeBgColor = globalBackgroundColor;
+            let netoyerInlineBgPourAnimations = false;
+
+            fxRack.forEach(fx => { 
+                if (fx.isActive && fx.type === 'globalFlashColor') activeBgColor = fx.flashColor; 
+                if (fx.isActive && fx.type === 'globalRainbow') netoyerInlineBgPourAnimations = true;
+            });
+            
+            if (netoyerInlineBgPourAnimations) {
+                viewport.style.backgroundColor = "";
+            } else {
+                viewport.style.backgroundColor = activeBgColor;
+            }
+
+            layers.forEach(l => {
+                let box = document.getElementById(l.id);
+                if (box) {
+                    let wrapper = box.querySelector('.layer-visual-wrapper');
+                    if (wrapper) {
+                        wrapper.classList.remove('fx-active-blink');
+                        wrapper.style.removeProperty('--fx-blink-speed');
+                    }
+                    let elem = box.querySelector('.layer-text-content, .layer-media-content');
+                    if (elem) {
+                        elem.classList.remove('fx-active-rainbow');
+                        elem.style.removeProperty('--fx-rainbow-speed');
+                        elem.style.color = "";
+                        elem.style.backgroundColor = "";
+                    }
+                    if(l.type === 'text') appliquerChangementStyleTexte(l);
+                }
+            });
+
+            fxRack.forEach(fx => {
+                if (!fx.isActive) return;
+                
+                let faderVal = parseInt(fx.speed || 5);
+                let calculFaderTempsClignotement = (11 - faderVal) * 0.05; 
+                
+                let calculFaderTempsArcEnCiel = ((11 - faderVal) * 0.4) + 's';
+                if(faderVal === 10) calculFaderTempsArcEnCiel = '0.15s';
+                if(faderVal === 0) calculFaderTempsArcEnCiel = '15s';
+                
+                if (fx.type === 'globalStrobe') { 
+                    document.documentElement.style.setProperty('--fx-strobe-color', fx.strobeColor);
+                    let calculVitesseStrobeDMX = 1.0 - (faderVal * 0.098);
+                    if(faderVal === 10) { calculVitesseStrobeDMX = 0.02; } 
+                    
+                    document.documentElement.style.setProperty('--fx-strobe-speed', calculVitesseStrobeDMX + 's');
+                    strobeOverlay.classList.add('fx-strobe-global-bg'); 
+                    strobeOverlay.style.display = "block";
+                }
+                else if (fx.type === 'globalRainbow') { 
+                    viewport.classList.add('fx-rainbow-global-bg'); 
+                    viewport.style.setProperty('--fx-rainbow-speed', calculFaderTempsArcEnCiel); 
+                }
+                else if (fx.type === 'rainbow' || fx.type === 'blink') {
+                    let l = layers.find(layer => layer.id === fx.targetLayerId); if (!l) return;
+                    let box = document.getElementById(l.id); if (!box) return;
+                    
+                    if (fx.type === 'rainbow') { 
+                        let elem = box.querySelector('.layer-text-content, .layer-media-content'); if (!elem) return;
+                        elem.classList.add('fx-active-rainbow'); 
+                        elem.style.setProperty('--fx-rainbow-speed', calculFaderTempsArcEnCiel); 
+                        elem.style.color = "transparent";
+                        elem.style.backgroundColor = "transparent";
+                    }
+                    if (fx.type === 'blink') { 
+                        let wrapper = box.querySelector('.layer-visual-wrapper');
+                        if (wrapper) {
+                            wrapper.classList.add('fx-active-blink'); 
+                            wrapper.style.setProperty('--fx-blink-speed', calculFaderTempsClignotement + 's'); 
+                        }
+                    }
+                }
+            });
+            syncFenetreExterne();
+        }
+
+        function mettreAuPremierPlan() {
+            if (!selectedLayerId) return;
+            let l = layers.find(layer => layer.id === selectedLayerId); if (!l) return;
+            let maxZ = layers.reduce((max, layer) => layer.z > max ? layer.z : max, 10);
+            l.z = maxZ + 1; document.getElementById(l.id).style.zIndex = l.z; syncFenetreExterne();
+        }
+        function mettreAlArrierePlan() {
+            if (!selectedLayerId) return;
+            let l = layers.find(layer => layer.id === selectedLayerId); if (!l) return;
+            let minZ = layers.reduce((min, layer) => layer.z < min ? layer.z : min, 10);
+            l.z = minZ - 1; document.getElementById(l.id).style.zIndex = l.z; syncFenetreExterne();
+        }
+
+        function ajouterEcouteurs(el, obj) {
+            el.onmousedown = (e) => {
+                changerSelection(el.id);
+                let isHandle = e.target.classList.contains('handle');
+                let vp = document.getElementById('preview-viewport');
+                let sX = e.clientX; let sY = e.clientY;
+                let sW = el.offsetWidth; let sH = el.offsetHeight;
+                let sL = el.offsetLeft; let sT = el.offsetTop;
+                let textStartSize = obj.h;
+
+                window.onmousemove = (me) => {
+                    let vW = vp.clientWidth; let vH = vp.clientHeight;
+                    if (!isHandle) {
+                        let dx = me.clientX - sX; let dy = me.clientY - sY;
+                        let targetLeft = sL + dx; let targetTop = sT + dy;
+                        let eW = el.offsetWidth; let eH = el.offsetHeight;
+                        
+                        if (targetLeft < 0) targetLeft = 0;
+                        if (targetTop < 0) targetTop = 0;
+                        if (targetLeft + eW > vW) targetLeft = vW - eW;
+                        if (targetTop + eH > vH) targetTop = vH - eH;
+
+                        let vCenterX = vW / 2; let vCenterY = vH / 2;
+                        let eCenterX = targetLeft + eW / 2; let eCenterY = targetTop + eH / 2;
+                        let snapThreshold = 12;
+                        let guideV = document.getElementById('guide-v');
+                        let guideH = document.getElementById('guide-h');
+                        
+                        if (Math.abs(eCenterX - vCenterX) < snapThreshold) { targetLeft = vCenterX - eW / 2; guideV.style.display = 'block'; } else { guideV.style.display = 'none'; }
+                        if (Math.abs(eCenterY - vCenterY) < snapThreshold) { targetTop = vCenterY - eH / 2; guideH.style.display = 'block'; } else { guideH.style.display = 'none'; }
+                        
+                        el.style.left = targetLeft + "px"; el.style.top = targetTop + "px";
+                        obj.x = (targetLeft / vW) * 100; obj.y = (targetTop / vH) * 100;
+                    } else {
+                        let dx = me.clientX - sX;
+                        if (obj.type === 'text') {
+                            let nouvelleTaille = Math.max(10, textStartSize + (dx * 0.5)); obj.h = nouvelleTaille;
+                            let tElem = el.querySelector('.layer-text-content'); if(tElem) tElem.style.fontSize = nouvelleTaille + "px";
+                            let slider = document.getElementById('text-size-slider'); if(slider) slider.value = nouvelleTaille;
+                        } else {
+                            let newW = Math.max(20, sW + dx); 
+                            if(el.offsetLeft + newW > vW) newW = vW - el.offsetLeft; 
+                            el.style.width = newW + "px"; el.style.height = (newW / obj.ratio) + "px";
+                            obj.w = (newW / vW) * 100; obj.h = (el.offsetHeight / vH) * 100;
+                        }
+                    }
+                    syncFenetreExterne();
+                };
+                window.onmouseup = () => {
+                    document.getElementById('guide-v').style.display = 'none';
+                    document.getElementById('guide-h').style.display = 'none';
+                    window.onmousemove = null;
+                };
+                e.stopPropagation();
+            };
+        }
+
+        function creerZoneTexte(texte = "TEXTE", x = 35, y = 38) {
+            let id = "l_" + Date.now();
+            let layer = { id: id, type: 'text', text: texte, x: x, y: y, h: 40, font: "Montserrat", z: globalZIndexCounter++, color: "#ffffff", bgColor: "#ff0055", bgTransparent: true, isBold: false, isItalic: false, isUnderline: false };
+            layers.push(layer);
+            let box = document.createElement('div'); box.className = "layer-box"; box.id = id; box.style.left = x + "%"; box.style.top = y + "%"; box.style.zIndex = layer.z;
+            
+            box.innerHTML = `<div class="layer-visual-wrapper"><div class="layer-text-content" style="font-family:'Montserrat', sans-serif; font-size:40px; color:#ffffff; background-color:transparent;">${texte}</div></div><div class="handle br"></div>`;
+            
+            document.getElementById('preview-viewport').appendChild(box);
+            ajouterEcouteurs(box, layer); 
+            appliquerChangementStyleTexte(layer);
+            changerSelection(id); 
+            renderRackEffets();
+        }
+
+        function dupliquerCalqueSelectionne() {
+            if (!selectedLayerId) return;
+            let source = layers.find(l => l.id === selectedLayerId); if (!source || source.type !== 'text') return;
+            creerZoneTexte(source.text, source.x + 4, source.y + 4);
+            let clone = layers[layers.length - 1];
+            clone.h = source.h; clone.font = source.font; clone.color = source.color; clone.bgColor = source.bgColor; clone.bgTransparent = source.bgTransparent;
+            clone.isBold = source.isBold; clone.isItalic = source.isItalic; clone.isUnderline = source.isUnderline;
+            appliquerChangementStyleTexte(clone); syncFenetreExterne();
+        }
+
+        function chargerFichierMedia(input) {
+            if (!input.files[0]) return;
+            let id = "l_" + Date.now(); let url = URL.createObjectURL(input.files[0]); let isVid = input.files[0].type.startsWith('video');
+            
+            // Ajout des propriétés de contrôle de lecture pour les vidéos
+            let layer = { id: id, type: 'media', isVideo: isVid, x: 10, y: 10, w: 30, h: 22, ratio: 1.5, z: globalZIndexCounter++, isPaused: false, assignedMidiPlayPause: null };
+            layers.push(layer);
+            
+            let box = document.createElement('div'); box.className = "layer-box"; box.id = id; 
+            box.style.left = "10%"; box.style.top = "10%"; box.style.width = "30%"; box.style.height = "22%"; box.style.zIndex = layer.z;
+            let media = document.createElement(isVid ? 'video' : 'img'); media.src = url; media.className = "layer-media-content"; if(isVid){ media.autoplay = true; media.loop = true; media.muted = true; }
+            if (isVid) { media.onloadedmetadata = () => { layer.ratio = media.videoWidth / media.videoHeight; }; } 
+            else { media.onload = () => { layer.ratio = media.naturalWidth / media.naturalHeight; }; }
+            
+            box.innerHTML = `<div class="layer-visual-wrapper"></div><div class="handle br"></div>`;
+            box.querySelector('.layer-visual-wrapper').appendChild(media);
+            
+            document.getElementById('preview-viewport').appendChild(box);
+            ajouterEcouteurs(box, layer); changerSelection(id); renderRackEffets();
+            input.value = '';
+        }
+
+        // Système de bascule Play / Pause manuel ou MIDI
+        function basculerPlayPauseVideo(layerId) {
+            let l = layers.find(layer => layer.id === layerId);
+            if (!l || !l.isVideo) return;
+            l.isPaused = !l.isPaused;
+            
+            let box = document.getElementById(l.id);
+            if (box) {
+                let video = box.querySelector('video');
+                if (video) {
+                    if (l.isPaused) video.pause();
+                    else video.play();
+                }
+            }
+            if (selectedLayerId === layerId) changerSelection(layerId); // Rafraîchir l'inspecteur
+            syncFenetreExterne();
+        }
+
+        function enclencherAttenteMappingVideo(layerId) {
+            mappingTargetFxId = null;
+            mappingTargetVideoId = layerId;
+            let btn = document.getElementById(`map-video-btn-${layerId}`);
+            if (btn) {
+                btn.classList.add('learning');
+                btn.innerText = "ATTENTE PAD...";
+            }
+        }
+
+        function effacerMappingVideo(layerId) {
+            let l = layers.find(layer => layer.id === layerId);
+            if (l) l.assignedMidiPlayPause = null;
+            changerSelection(layerId);
+        }
+
+        function changerSelection(id) {
+            selectedLayerId = id; document.querySelectorAll('.layer-box').forEach(b => b.classList.toggle('selected', b.id === id));
+            let panel = document.getElementById('dynamic-inspector-panel');
+            if (!id || id === 'none') { panel.style.display = "none"; return; }
+            let l = layers.find(layer => layer.id === id); panel.style.display = "block";
+            
+            if (l.type === 'text') {
+                panel.innerHTML = `
+                <h3>Texte</h3>
+                <label>Modifier le texte</label>
+                <input type="text" value="${l.text}" oninput="modifierTexte(this.value)">
+                
+                <label>Style de police</label>
+                <select onchange="modifierPolice(this.value)">
+                    <option value="Montserrat" ${l.font === 'Montserrat' ? 'selected' : ''}>Montserrat</option>
+                    <option value="Anton" ${l.font === 'Anton' ? 'selected' : ''}>Anton</option>
+                    <option value="Oswald" ${l.font === 'Oswald' ? 'selected' : ''}>Oswald</option>
+                    <option value="Bebas Neue" ${l.font === 'Bebas Neue' ? 'selected' : ''}>Bebas Neue</option>
+                    <option value="Syncopate" ${l.font === 'Syncopate' ? 'selected' : ''}>Syncopate</option>
+                </select>
+
+                <div class="style-btn-group">
+                    <button class="style-btn ${l.isBold ? 'active' : ''}" onclick="basculerStyleTexte('isBold')"><b>B</b></button>
+                    <button class="style-btn ${l.isItalic ? 'active' : ''}" onclick="basculerStyleTexte('isItalic')"><i>I</i></button>
+                    <button class="style-btn ${l.isUnderline ? 'active' : ''}" onclick="basculerStyleTexte('isUnderline')"><u>U</u></button>
+                </div>
+
+                <div style="display:flex; gap:8px; margin-top:10px;">
+                    <div style="flex:1;"><label>Couleur Texte</label><input type="color" value="${l.color || '#ffffff'}" oninput="modifierCouleurTexte(this.value)"></div>
+                </div>
+
+                <div style="background: rgba(255,255,255,0.03); padding: 8px; border-radius: 4px; margin-top: 12px; border: 1px solid #333;">
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="text-bg-checkbox" ${!l.bgTransparent ? 'checked' : ''} onchange="basculerFondTexte(this.checked)">
+                        Activer Fond Propre
+                    </label>
+                    <label>Couleur du Fond</label>
+                    <input type="color" value="${l.bgColor || '#ff0055'}" oninput="modifierCouleurFondTexte(this.value)">
+                </div>
+
+                <label style="margin-top:12px;">Taille du texte</label>
+                <input type="range" id="text-size-slider" min="10" max="200" value="${l.h}" oninput="modifierTaille(this.value)">
+                
+                <div style="display:flex; gap:5px; margin-top:10px;">
+                    <button class="btn-blue" style="flex:1;" onclick="mettreAuPremierPlan()">🔼 Premier Plan</button>
+                    <button style="flex:1;" onclick="mettreAlArrierePlan()">🔽 Arrière-Plan</button>
+                </div>
+                <button class="btn-red" style="width:100%; margin-top:15px;" onclick="supprimerCalqueSelectionne()">Supprimer</button>`;
+            } else {
+                // INSPECTEUR MEDIA (S'adapte s'il s'agit d'une vidéo ou image)
+                if (l.isVideo) {
+                    let labelMap = l.assignedMidiPlayPause !== null ? `NOTE ${l.assignedMidiPlayPause}` : "MAP CONTROL LECTURE";
+                    panel.innerHTML = `
+                    <h3>Inspecteur Vidéo</h3>
+                    
+                    <label>Contrôle de Flux</label>
+                    <button class="btn-blue" style="width: 100%; margin-bottom: 12px; font-weight: 900; background: ${l.isPaused ? '#ffaa00' : '#0055ff'};" onclick="basculerPlayPauseVideo('${l.id}')">
+                        ${l.isPaused ? '▶️ RELANCER (PLAY)' : '⏸️ FIGER (PAUSE)'}
+                    </button>
+
+                    <label>Assigner un carré (Pad MIDI)</label>
+                    <div class="mapping-block" style="margin-bottom: 15px;">
+                        <button id="map-video-btn-${l.id}" class="btn-map-combined ${l.assignedMidiPlayPause !== null ? 'mapped' : ''}" style="width:100%; height:28px;" onclick="enclencherAttenteMappingVideo('${l.id}')">${labelMap}</button>
+                        ${l.assignedMidiPlayPause !== null ? `<button class="btn-unmap-combined" style="height:28px;" onclick="effacerMappingVideo('${l.id}')">×</button>` : ''}
+                    </div>
+
+                    <div style="display:flex; gap:5px; margin-bottom:15px;">
+                        <button class="btn-blue" style="flex:1;" onclick="mettreAuPremierPlan()">🔼 Premier Plan</button>
+                        <button style="flex:1;" onclick="mettreAlArrierePlan()">🔽 Arrière-Plan</button>
+                    </div>
+                    <button class="btn-red" style="width:100%;" onclick="supprimerCalqueSelectionne()">Supprimer</button>`;
+                } else {
+                    panel.innerHTML = `
+                    <h3>Inspecteur Image</h3>
+                    <div style="display:flex; gap:5px; margin-bottom:15px;">
+                        <button class="btn-blue" style="flex:1;" onclick="mettreAuPremierPlan()">🔼 Premier Plan</button>
+                        <button style="flex:1;" onclick="mettreAlArrierePlan()">🔽 Arrière-Plan</button>
+                    </div>
+                    <button class="btn-red" style="width:100%;" onclick="supprimerCalqueSelectionne()">Supprimer</button>`;
+                }
+            }
+        }
+
+        function modifierTexte(v) { 
+            let l = layers.find(layer => layer.id === selectedLayerId); l.text = v; 
+            document.getElementById(l.id).querySelector('.layer-text-content').innerText = v; 
+            renderRackEffets(); appliquerTousLesEffetsDuRack();
+        }
+        function modifierTaille(v) { let l = layers.find(layer => layer.id === selectedLayerId); l.h = parseInt(v); document.getElementById(l.id).querySelector('.layer-text-content').style.fontSize = v + "px"; syncFenetreExterne(); }
+        function modifierPolice(v) { let l = layers.find(layer => layer.id === selectedLayerId); l.font = v; appliquerChangementStyleTexte(l); appliquerTousLesEffetsDuRack(); }
+        function modifierCouleurTexte(v) { let l = layers.find(layer => layer.id === selectedLayerId); l.color = v; appliquerChangementStyleTexte(l); appliquerTousLesEffetsDuRack(); }
+        function modifierCouleurFondTexte(v) { let l = layers.find(layer => layer.id === selectedLayerId); l.bgColor = v; appliquerChangementStyleTexte(l); syncFenetreExterne(); }
+        function basculerFondTexte(checked) { let l = layers.find(layer => layer.id === selectedLayerId); l.bgTransparent = !checked; appliquerChangementStyleTexte(l); syncFenetreExterne(); }
+
+        function basculerStyleTexte(propriete) {
+            let l = layers.find(layer => layer.id === selectedLayerId);
+            if (l && l.type === 'text') {
+                l[propriete] = !l[propriete];
+                appliquerChangementStyleTexte(l);
+                changerSelection(l.id); 
+                syncFenetreExterne();
+            }
+        }
+
+        function appliquerChangementStyleTexte(l) {
+            let box = document.getElementById(l.id); if(!box) return; let s = box.querySelector('.layer-text-content'); if(!s) return;
+            s.style.fontFamily = `'${l.font}', sans-serif`; 
+            s.style.color = l.color || "#ffffff";
+            s.style.backgroundColor = l.bgTransparent ? "transparent" : l.bgColor;
+            s.style.fontWeight = l.isBold ? "bold" : "normal";
+            s.style.fontStyle = l.isItalic ? "italic" : "normal";
+            s.style.textDecoration = l.isUnderline ? "underline" : "none";
+        }
+
+        function supprimerCalqueSelectionne() { 
+            if (!selectedLayerId) return; document.getElementById(selectedLayerId).remove(); 
+            fxRack.forEach(fx => { if(fx.targetLayerId === selectedLayerId) fx.targetLayerId = "none"; });
+            layers = layers.filter(l => l.id !== selectedLayerId); changerSelection('none'); renderRackEffets(); appliquerTousLesEffetsDuRack(); 
+        }
+
+        async function actualiserListeEcrans() {
+            let s = document.getElementById('screen-selector'); s.innerHTML = '<option value="none">-- Choisir --</option>';
+            try {
+                const details = await window.getScreenDetails();
+                details.screens.forEach((sc, i) => { screensData.push(sc); let o = document.createElement('option'); o.value = i; o.innerText = sc.label; s.appendChild(o); });
+            } catch(e) { let o = document.createElement('option'); o.value = "std"; o.innerText = "Projecteur Virtualise"; s.appendChild(o); }
+        }
+        function validerSelectionEcran() { document.getElementById('btn-projector').disabled = false; }
+        function changerCouleurArrierePlanGlobal(c) { globalBackgroundColor = c; appliquerTousLesEffetsDuRack(); }
+        function deselectionnerTout(e) { if(e.target.id === "preview-viewport") changerSelection('none'); }
+
+        function fermerProjectionExterne() {
+            if (extWindow && !extWindow.closed) { extWindow.close(); }
+            document.getElementById('btn-close-projector').style.display = 'none';
+        }
+
+        async function ouvrirProjectionSurEcranSelectionne() {
+            let opt = `width=1280,height=720,menubar=no,toolbar=no`; let val = document.getElementById('screen-selector').value;
+            if(val !== "std" && screensData[val]) { let sc = screensData[val]; opt = `left=${sc.availLeft},top=${sc.availTop},width=${sc.width},height=${sc.height},menubar=no,toolbar=no`; }
+            extWindow = window.open("", "VJ_OUT", opt);
+            
+            extWindow.document.write(`<html><head>
+                <link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Montserrat:wght@400;900&family=Oswald:wght@400;700&family=Syncopate:wght@400;700&display=swap" rel="stylesheet">
+                <style>
+                html, body { margin:0; padding:0; overflow:hidden; background:black; width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
+                #output-canvas { position: relative; overflow: hidden; background: black; }
+                .layer { position:absolute; transform: translate(0, 0); }
+                .calibration-overlay-ext { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999999 !important; display: none; object-fit: fill; }
+
+                :root { 
+                    --fx-strobe-speed: 1s; 
+                    --fx-strobe-color: #ffffff; 
+                    --fx-rainbow-speed: 4s;
+                    --fx-blink-speed: 0.2s;
+                }
+                .fx-strobe-global-bg { animation: strobeGlobalAnim var(--fx-strobe-speed) infinite linear !important; }
+                .fx-rainbow-global-bg { animation: rainbowAnimationBg var(--fx-rainbow-speed) infinite linear !important; }
+                
+                .fx-active-rainbow { 
+                    background-image: linear-gradient(to right, #ff0000, #ff00ff, #0000ff, #00ffff, #00ff00, #ffff00, #ff0000) !important;
+                    background-size: 200% auto !important;
+                    -webkit-background-clip: text !important;
+                    background-clip: text !important;
+                    -webkit-text-fill-color: transparent !important;
+                    animation: rainbowMovingText var(--fx-rainbow-speed) infinite linear !important;
+                    text-shadow: none !important;
+                }
+                .fx-active-blink { animation: blinkAnimationText var(--fx-blink-speed) infinite steps(1) !important; }
+                
+                @keyframes strobeGlobalAnim { 0%, 49.99% { background-color: var(--fx-strobe-color); } 50%, 100% { background-color: transparent; } }
+                @keyframes rainbowMovingText { 0% { background-position: 0% center; } 100% { background-position: -200% center; } }
+                @keyframes rainbowAnimationBg { 0% { background-color: #ff0000; } 17% { background-color: #ff00ff; } 33% { background-color: #0000ff; } 50% { background-color: #00ffff; } 67% { background-color: #00ff00; } 83% { background-color: #ffff00; } 100% { background-color: #ff0000; } }
+                @keyframes blinkAnimationText { 0%, 49.99% { opacity: 1; visibility: visible; } 50%, 100% { opacity: 0; visibility: hidden; } }
+            </style>
+            <script>
+                function forcerPleinEcran() {
+                    let docEl = document.documentElement;
+                    if (docEl.requestFullscreen) docEl.requestFullscreen().catch(e => {});
+                }
+                window.onload = forcerPleinEcran;
+                document.addEventListener('click', forcerPleinEcran);
+                window.addEventListener('resize', () => { if (window.opener && !window.opener.closed) window.opener.syncFenetreExterne(); });
+            <\/script>
+            </head><body>
+                <div id="output-canvas">
+                    <img id="ext-calibration-pattern" class="calibration-overlay-ext" src="${mireBase64Src}" alt="Mire">
+                    <div id="ext-strobe-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 999998; display: none;"></div>
+                </div>
+            </body></html>`);
+            extWindow.document.close();
+            
+            document.getElementById('btn-close-projector').style.display = 'block';
+            setTimeout(() => {
+                try { if(extWindow.document.documentElement.requestFullscreen) extWindow.document.documentElement.requestFullscreen(); } catch(e){}
+                appliquerTousLesEffetsDuRack();
+            }, 300);
+        }
+
+        function syncFenetreExterne() {
+            if (!extWindow || extWindow.closed) return;
+            let canv = extWindow.document.getElementById('output-canvas'); if(!canv) return;
+            
+            let view = document.getElementById('preview-viewport');
+            canv.className = view.className; 
+            canv.style.backgroundColor = view.style.backgroundColor;
+            
+            let ratioW = 16, ratioH = 9;
+            if (currentAspectRatio === "4/3") { ratioW = 4; ratioH = 3; }
+            else if (currentAspectRatio === "21/9") { ratioW = 21; ratioH = 9; }
+            
+            let windowW = extWindow.innerWidth;
+            let windowH = extWindow.innerHeight;
+            
+            if ((windowW / windowH) > (ratioW / ratioH)) {
+                canv.style.height = windowH + "px"; canv.style.width = (windowH * (ratioW / ratioH)) + "px";
+            } else {
+                canv.style.width = windowW + "px"; canv.style.height = (windowW * (ratioH / ratioW)) + "px";
+            }
+
+            let extMire = extWindow.document.getElementById('ext-calibration-pattern');
+            if (extMire) extMire.style.display = isCalibrationActive ? 'block' : 'none';
+            
+            let strobeOverlay = document.getElementById('strobe-overlay');
+            let extStrobe = extWindow.document.getElementById('ext-strobe-overlay');
+            if (extStrobe && strobeOverlay) {
+                extStrobe.className = strobeOverlay.className;
+                extStrobe.style.display = strobeOverlay.style.display;
+            }
+
+            extWindow.document.documentElement.style.setProperty('--fx-strobe-color', document.documentElement.style.getPropertyValue('--fx-strobe-color'));
+            extWindow.document.documentElement.style.setProperty('--fx-strobe-speed', document.documentElement.style.getPropertyValue('--fx-strobe-speed'));
+            extWindow.document.documentElement.style.setProperty('--fx-rainbow-speed', view.style.getPropertyValue('--fx-rainbow-speed'));
+
+            let existingLayers = canv.querySelectorAll('.layer');
+            existingLayers.forEach(el => el.remove());
+            
+            layers.forEach(l => {
+                let div = extWindow.document.createElement('div'); div.style.left = l.x + "%"; div.style.top = l.y + "%"; div.style.zIndex = l.z; div.className = "layer";
+                let localBox = document.getElementById(l.id);
+                let localWrapper = localBox ? localBox.querySelector('.layer-visual-wrapper') : null;
+                
+                if (localWrapper && localWrapper.classList.contains('fx-active-blink')) {
+                    div.classList.add('fx-active-blink');
+                    div.style.setProperty('--fx-blink-speed', localWrapper.style.getPropertyValue('--fx-blink-speed'));
+                }
+                
+                let localElem = localBox ? localBox.querySelector('.layer-text-content, .layer-media-content') : null;
+                
+                if (l.type === 'text') {
+                    let textSpan = extWindow.document.createElement('span'); textSpan.innerText = l.text; 
+                    textSpan.style.fontFamily = `'${l.font}', sans-serif`; 
+                    
+                    let scaleFactor = canv.clientWidth / view.clientWidth;
+                    textSpan.style.fontSize = (l.h * scaleFactor) + "px"; 
+                    
+                    textSpan.style.whiteSpace = "nowrap";
+                    textSpan.style.fontWeight = l.isBold ? "bold" : "normal";
+                    textSpan.style.fontStyle = l.isItalic ? "italic" : "normal";
+                    textSpan.style.textDecoration = l.isUnderline ? "underline" : "none";
+                    
+                    textSpan.style.borderRadius = "4px"; textSpan.style.padding = "6px 12px"; textSpan.style.display = "inline-block";
+                    
+                    if (localElem && localElem.classList.contains('fx-active-rainbow')) {
+                        textSpan.className = "fx-active-rainbow"; 
+                        textSpan.style.setProperty('--fx-rainbow-speed', localElem.style.getPropertyValue('--fx-rainbow-speed'));
+                        textSpan.style.color = "transparent"; textSpan.style.backgroundColor = "transparent";
+                    } else {
+                        textSpan.style.backgroundColor = l.bgTransparent ? "transparent" : l.bgColor;
+                        textSpan.style.color = l.color || "#ffffff";
+                        if (l.bgTransparent) { textSpan.style.textShadow = "0 0 6px black"; }
+                    }
+                    div.appendChild(textSpan);
+                } else {
+                    let m = extWindow.document.createElement(l.isVideo ? 'video' : 'img'); m.src = localBox.querySelector(l.isVideo ? 'video' : 'img').src;
+                    div.style.width = l.w + "%"; div.style.height = l.h + "%"; m.style.width = "100%"; m.style.height = "100%"; m.style.objectFit = "fill";
+                    if(l.isVideo) { 
+                        m.loop = true; 
+                        m.muted = true; 
+                        // Synchronisation parfaite de l'état play/pause sur l'écran public
+                        if (l.isPaused) {
+                            m.autoplay = false;
+                        } else {
+                            m.autoplay = true;
+                        }
+                    } 
+                    div.appendChild(m);
+                }
+                canv.appendChild(div);
+            });
+        }
+        
+        window.addEventListener('resize', () => { if(extWindow) syncFenetreExterne(); });
+    </script>
+</body>
+</html>f
